@@ -200,7 +200,7 @@ v = pd.DataFrame({'id' : [i for i in range(sim_pop_size)],
 })
 
 e = pd.DataFrame(columns=["src","dst","cluster"], index=[i for i in range(sim_edge_count)])
-for i in range(sim_pop_size):
+for i in range(sim_edge_count):
     e.loc[i] = pd.Series({"src": random.sample(list(v["id"]), 1)[0], "dst": random.sample(list(v["id"]), 1)[0], "cluster": random.sample([i for i in range(sim_n_cluster)], 1)})
 
 

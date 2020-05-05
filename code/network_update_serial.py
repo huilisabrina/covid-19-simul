@@ -85,7 +85,7 @@ def E_flow(e_nodes, i_nodes, t_latent):
     return 0
 
 #Carry out the I --> S --> E spreading process for one time step.
-def S_flow(df_edges, s_nodes, i_nodes, e_nodes, p_is, t_infectious):
+def S_flow(df_edges, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, p_ih, p_ir, t_infectious):
     """
     TO DO: 
     1) add an attribute to the nodes, node.days_elapsed()
@@ -171,7 +171,7 @@ def simulate(df_nodes, df_edges,
         H_flow(h_nodes, r_nodes, d_nodes, p_hr, p_hd)
         I_flow(i_nodes, r_nodes, h_nodes, d_nodes, p_id, p_ih, p_ir)
         E_flow(e_nodes, i_nodes, t_latent)
-        S_flow(df_edges, s_nodes, i_nodes, e_nodes, p_is, t_infectious)
+        S_flow(df_edges, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, p_ih, p_ir, t_infectious)
                    
         duration += 1
         
@@ -194,9 +194,9 @@ sim_edge_count = 5000
 sim_n_cluster = 8
 print("Setting up graph data with {} nodes, {} edges and {} clusters".format(sim_pop_size, sim_edge_count, sim_n_cluster))
 
-v = pd.DataFrame({'id' : [i for i in range(pop_size)],
-    'age' : list(np.random.randint(100, size=pop_size)),
-    'sex' : list(np.random.randint(2, size=pop_size))
+v = pd.DataFrame({'id' : [i for i in range(sim_pop_size)],
+    'age' : list(np.random.randint(100, size=sim_pop_size)),
+    'sex' : list(np.random.randint(2, size=sim_pop_size))
 })
 
 e = pd.DataFrame(columns=["src","dst","cluster"], index=[i for i in range(sim_edge_count)])

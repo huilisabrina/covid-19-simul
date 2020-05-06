@@ -1,10 +1,9 @@
 import random
-import networkx as nx
 import numpy as np
 import pandas as pd
-import scipy.stats as ss
-import matplotlib.pyplot as plt
-%matplotlib notebook
+# import scipy.stats as ss
+# import matplotlib.pyplot as plt
+# %matplotlib notebook
 
 #### =================================
 ####  GRAPH UPDATING FUNCTIONS

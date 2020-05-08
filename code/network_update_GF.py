@@ -8,7 +8,6 @@
 #### =================================
 
 # graphframes
-os.environ["PYSPARK_SUBMIT_ARGS"] = ("--packages graphframes:graphframes:0.5.0-spark2.1-s_2.11 pyspark-shell")
 from graphframes import *
 from graphframes import graphframe as GF
 from graphframes.lib import AggregateMessages as AM
@@ -32,19 +31,27 @@ import random
 import numpy as np
 import pandas as pd
 from functools import reduce
-import os  
+import os
+os.environ["PYSPARK_SUBMIT_ARGS"] = ("--packages graphframes:graphframes:0.5.0-spark2.1-s_2.11 pyspark-shell")
 # import scipy.stats as ss
 # import matplotlib.pyplot as plt
 # %matplotlib notebook
 
-#### Spark session
-spark = SparkSession.builder.appName('testtest').getOrCreate()
+
+# For nice printing
+from IPython.display import display
+
+####### SET UP Spark environment
+# spark = SparkSession.builder.appName('testtest').getOrCreate()
+
 # Spark configuration
 conf = (SparkConf().setMaster('local').setAppName('toy_graph'))
+# Spark context
+sc = SparkContext(conf=conf)
 # Create an SQL context:
 sql_context = SQLContext(sc)
-# Spark context
-# sc = SparkContext(conf=conf)
+
+
 
 
 #### =================================
@@ -126,8 +133,7 @@ def E_flow(g, e_nodes, i_nodes, t_latent):
 #Carry out the I --> S --> E spreading process for one time step.
 def S_flow(g, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, p_ih, p_ir, t_infectious):
     """
-    TO DO: 
-    allow one node in Infected to affect multiple nodes in S.
+    TO DO: allow one node in Infected to affect multiple nodes in S.
 
     Currently, one I node can only affect one S.
     """
@@ -201,19 +207,19 @@ def simulate(g,
     nodes_counter = pd.DataFrame(columns=["n_{}".format(x) for x in ['s','e','i','r','h','d']], index=[i for i in range(num_time_steps)])
     nodes_counter.loc[0] = [len(s_nodes),len(e_nodes),len(i_nodes), len(r_nodes), len(h_nodes), len(d_nodes)]
 
-    # select neighbors of a node based on a graph --> put to "neighbor" column (used in S_flow step)
+    # ADD "neighbors" column: select neighbors of a node based on a graph (used in S_flow step)
     neighbor = g.find("(a)-[e]->(b)").drop("e").groupBy('a.id').agg(collect_list('b.id').alias('neighbors'))
     g_neighbor = neighbor.join(g.vertices, ['id'], "right_outer")
     g = GF.GraphFrame(g_neighbor, e)
 
-    # Initialize the "state" property for each node 
-    # t0: number of I nodes and H nodes are based on user-defined functions. ALL OTHER NODES are assumed to be S
+    # ADD "state" column
+    # At t0: number of I nodes and H nodes are based on user-defined functions. ALL OTHER NODES are assumed to be S
     g_temp = g.vertices.withColumn("state",when(g.vertices.id.isin(i_nodes), "I").otherwise(when(g.vertices.id.isin(h_nodes), "H").otherwise("S")))
     
-    # Initialize the "i_days" and "e_days" properties for each node 
-    # t0: zeros 
+    # ADD "i_days" and "e_days" column 
+    # At t0: 1 for all I_nodes and 0 for all others
     g_temp = g_temp.withColumn("i_days", lit(0))
-    g_temp = g_temp.withColumn("e_days", lit(0))
+    g_temp = g_temp.withColumn("e_days", when(g.vertices.id.isin(e_nodes), lit(1)).otherwise(lit(0)))
     g = GF.GraphFrame(g_temp, e)
 
     # TO DO: allow p_is to be a vector of rates (time-dependent)
@@ -224,14 +230,14 @@ def simulate(g,
         new_E_nodes = S_flow(g, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, p_ih, p_ir, t_infectious)
                    
         # update the state column using the new lists ("x_nodes")
-        g_temp = g.vertices.withColumn("state", when(g.vertices.id.isin(s_nodes), "S").otherwise(when(g.vertices.id.isin(e_nodes), "E").otherwise(when(g.vertices.id.isin(i_node), "I").otherwise(when(g.vertices.id.isin(r_nodes), "R").otherwise(when(g.vertices.id.isin(h_nodes), "H").otherwise("D"))))))
+        g_temp = g.vertices.withColumn("state", when(g.vertices.id.isin(s_nodes), "S").otherwise(when(g.vertices.id.isin(e_nodes), "E").otherwise(when(g.vertices.id.isin(i_nodes), "I").otherwise(when(g.vertices.id.isin(r_nodes), "R").otherwise(when(g.vertices.id.isin(h_nodes), "H").otherwise("D"))))))
 
         # update i_days and e_days (1. initialize to zero the newly turned I nodes; 2. add one to previously exposed or infectious nodes)
         old_I_nodes = list(set(i_nodes) - set(new_I_nodes))
-        g_temp = g_temp.vertices.withColumn("i_days", when(g_temp.vertices.id.isin(new_I_nodes), 1).otherwise(when(g_temp.vertices.id.isin(old_I_nodes), g_temp.vertices.i_days+1).otherwise(0)))
+        g_temp = g_temp.withColumn("i_days", when(g_temp.id.isin(new_I_nodes), 1).otherwise(when(g_temp.id.isin(old_I_nodes), g_temp.i_days+1).otherwise(0)))
 
         old_E_nodes = list(set(e_nodes) - set(new_E_nodes))
-        g_temp = g_temp.vertices.withColumn("e_days", when(g_temp.vertices.id.isin(new_E_nodes), 1).otherwise(when(g_temp.vertices.id.isin(old_E_nodes), g_temp.vertices.e_days+1).otherwise(0)))
+        g_temp = g_temp.withColumn("e_days", when(g_temp.id.isin(new_E_nodes), 1).otherwise(when(g_temp.id.isin(old_E_nodes), g_temp.e_days+1).otherwise(0)))
         
         # finish upating the vertices --> let's update the graph!
         g = GF.GraphFrame(g_temp, e)
@@ -287,17 +293,17 @@ g = GF.GraphFrame(v, e)
 p_is = 0.5
 p_id = 0.0419
 p_ih = 0.0678
-p_ir = 0.3945*2
-p_hr = 0.3945
-p_hd = 0.0419*10
+p_ir = 0.0945*2
+p_hr = 0.03945
+p_hd = 0.0419
 
 t_latent = 7
 t_infectious = 5
 
-num_i_seeds = 100
-num_s_seeds = 100
-num_h_seeds = 20
-num_time_steps = 20
+num_i_seeds = 10
+num_s_seeds = 30
+num_h_seeds = 2
+num_time_steps = 5
 
 # Run simulations
 nodes_counter, duration = simulate(g, p_is, p_id, p_ih, p_ir, p_hr, p_hd, t_latent, t_infectious, num_i_seeds, num_s_seeds, num_h_seeds, num_time_steps)

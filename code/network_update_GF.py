@@ -21,15 +21,16 @@ from pyspark import SparkContext, SparkConf
 
 # SQL + Spark
 from pyspark.sql import SQLContext
-from pyspark.sql.functions import *
-from pyspark.sql.functions import col, lit, udf, when, concat
-from pyspark.sql import functions as F
+from pyspark.sql.functions import col, lit, udf, when, concat, collect_list
+from pyspark.sql.functions import sum as fsum
+# from pyspark.sql import functions as F
 from pyspark.sql.types import *
 
 # Basic packages
 import random
 import numpy as np
 import pandas as pd
+import math
 from functools import reduce
 import os
 os.environ["PYSPARK_SUBMIT_ARGS"] = ("--packages graphframes:graphframes:0.5.0-spark2.1-s_2.11 pyspark-shell")
@@ -50,9 +51,6 @@ conf = (SparkConf().setMaster('local').setAppName('toy_graph'))
 sc = SparkContext(conf=conf)
 # Create an SQL context:
 sql_context = SQLContext(sc)
-
-
-
 
 #### =================================
 ####  GRAPH UPDATING FUNCTIONS
@@ -148,17 +146,17 @@ def S_flow(g, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, 
             #Select neighbors (only infect via existing edges)
             neighbors = g.vertices.filter(col("id").isin([node])).select("neighbors").toPandas()["neighbors"][0]
             
-            if len(neighbors) != 0:
+            if neighbors is None or len(neighbors) == 0: #Assuming network stays constant, a I node w/o neighbors flow to R,D,H
+                i_nodes.remove(node)
+                send_I(node, r_nodes, h_nodes, d_nodes, p_id, p_ih, p_ir)
+            else:
                 infected = random.choice(neighbors)
                 if infected in s_nodes: #One infection per person per period
                     flip = np.random.binomial(1, p_is)
                     if flip == 1: #Infect others
                         new_E_nodes.append(infected)
                         e_nodes.append(infected)
-                        s_nodes.remove(infected)
-            else: #Assuming network stays constant, a I node w/o neighbors flow to R,D,H
-                i_nodes.remove(node)
-                send_I(node, r_nodes, h_nodes, d_nodes, p_id, p_ih, p_ir)
+                        s_nodes.remove(infected)               
 
         else: # if I node is no longer infectious (i.e. i_days > t_infectious), go to one of R,H,D
             i_nodes.remove(node)
@@ -170,8 +168,9 @@ def S_flow(g, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, 
 def send_I(i_node, r_nodes, h_nodes, d_nodes, p_id, p_ih, p_ir):
 
     #Reweight p_id, p_ih, p_ir so that transition is definitive
-    p_id, p_ih, p_ir = [x/sum([p_id, p_ih, p_ir]) for x in [p_id, p_ih, p_ir]]
-    assert p_ir == 1-p_id-p_ih, "Wrong reweighting of p_id, p_ih and p_ir!"
+    ls_sum = sum([p_id, p_ih, p_ir])
+    p_id, p_ih, p_ir = [x/ls_sum for x in [p_id, p_ih, p_ir]]
+    # assert p_ir == 1-p_id-p_ih, "Wrong reweighting of p_id, p_ih and p_ir!"
 
     dst_state = np.random.multinomial(1, [p_id, p_ih, 1-p_id-p_ih])
     dst_index = np.argwhere(dst_state==1)[0,0]

@@ -218,8 +218,8 @@ def simulate(g,
     
     # ADD "i_days" and "e_days" column 
     # At t0: 1 for all I_nodes and 0 for all others
-    g_temp = g_temp.withColumn("i_days", lit(0))
-    g_temp = g_temp.withColumn("e_days", when(g.vertices.id.isin(e_nodes), lit(1)).otherwise(lit(0)))
+    g_temp = g_temp.withColumn("e_days", lit(0))
+    g_temp = g_temp.withColumn("i_days", when(g.vertices.id.isin(i_nodes), lit(1)).otherwise(lit(0)))
     g = GF.GraphFrame(g_temp, e)
 
     # TO DO: allow p_is to be a vector of rates (time-dependent)

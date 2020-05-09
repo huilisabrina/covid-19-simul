@@ -1,51 +1,58 @@
 #### INITIATE SPARK WITH THE FOLLOWING
 # pyspark --packages graphframes:graphframes:0.6.0-spark2.3-s_2.11
 
+#### CALL FROM COMMAND LINE
+# spark-submit --packages graphframes:graphframes:0.6.0-spark2.3-s_2.11 network_update_GF.py
+
 #### =================================
-####  SETUP TO ENABLE GF AND PYSPARK
+####  PACKAGES SETUP
 #### =================================
 
-# graphframes
-os.environ["PYSPARK_SUBMIT_ARGS"] = ("--packages graphframes:graphframes:0.5.0-spark2.1-s_2.11 pyspark-shell")
-from graphframes import *
-from graphframes import graphframe as GF
-from graphframes.lib import AggregateMessages as AM
-from graphframes.examples import Graphs
-
-# MPI
-from mpi4py import MPI
-
-# Basic Spark classes
-from pyspark import SparkContext, SparkConf
-
-# SQL + Spark
-from pyspark.sql import SQLContext
-from pyspark.sql.functions import *
-from pyspark.sql.functions import col, lit, udf, when, concat
-from pyspark.sql import functions as F
-from pyspark.sql.types import *
+# Python 2 & 3 compatibility 
+from __future__ import division
+from __future__ import absolute_import
+from __future__ import print_function
 
 # Basic packages
 import random
 import numpy as np
 import pandas as pd
 from functools import reduce
-import os  
+import warnings
+warnings.filterwarnings("ignore")
+import os, sys, re
+import logging, time, traceback
+import argparse
+import os
+os.environ["PYSPARK_SUBMIT_ARGS"] = ("--packages graphframes:graphframes:0.5.0-spark2.1-s_2.11 pyspark-shell")
+# import scipy.stats as ss
+# import matplotlib.pyplot as plt
+# %matplotlib notebook
 
-# For nice printing
-from IPython.display import display
+# graphframes
+from graphframes import *
+from graphframes import graphframe as GF
+from graphframes.lib import AggregateMessages as AM
+from graphframes.examples import Graphs
+
+# MPI (later)
+# from mpi4py import MPI
+
+# SQL + Spark
+from pyspark import SparkContext, SparkConf
+from pyspark.sql import SQLContext
+from pyspark.sql.functions import col, lit, udf, when, concat, collect_list
+from pyspark.sql.functions import sum as fsum
+from pyspark.sql.types import *
+
 
 ####### SET UP Spark environment
-spark = SparkSession.builder.appName('testtest').getOrCreate()
-
 # Spark configuration
-conf = (SparkConf().setMaster('local').setAppName('toy_graph'))
-
+conf = SparkConf().setMaster('local[4]').setAppName('template')
+# Spark context
+sc = SparkContext(conf=conf)
 # Create an SQL context:
 sql_context = SQLContext(sc)
-
-# Spark context
-# sc = SparkContext(conf=conf)
 
 #### =================================
 ####  TO CALL AND RUN SERIAL CODES

@@ -3,7 +3,11 @@
 #-------------------------------------------------------
 # CS 205 Final Project
 # Network updating functions with GF integrated
-# Toy example for testing
+
+# Major differences from network_update_GF
+# Fully integrated with Command line
+# To be called by monte_carlo.bash
+# Replace toy example with real data
 #-------------------------------------------------------
 
 #### INITIATE SPARK WITH THE FOLLOWING
@@ -56,13 +60,113 @@ from pyspark.sql.types import *
 
 ####### SET UP Spark environment
 # Spark configuration
-conf = SparkConf().setMaster('local[4]').setAppName('run_test_GF')
+conf = SparkConf().setMaster('local[4]').setAppName('run_test_MC')
 # Spark context
 sc = SparkContext(conf=conf)
 # Create an SQL context:
 sql_context = SQLContext(sc)
 
 
+#### =================================
+####  HELPER FUNCTIONS
+#### =================================
+
+class Logger_to_Logging(object):
+    '''
+    Logger class that write uses logging module and is needed to use munge_sumstats or ldsc from the LD score package.
+    '''
+    def __init__(self):
+        logging.info('created Logger instance to pass through ldsc.')
+        super(Logger_to_Logging, self).__init__()
+
+    def log(self,x):
+        logging.info(x)
+
+class DisableLogger():
+    '''
+    For disabling the logging module when calling munge_sumstats
+    '''
+    def __enter__(self):
+       logging.disable(logging.CRITICAL)
+    def __exit__(self, a, b, c):
+       logging.disable(logging.NOTSET)
+
+def safely_create_folder(folder_path):
+    try:
+        os.makedirs(folder_path)
+    except OSError:
+        if not os.path.isdir(folder_path):
+            raise
+
+def sec_to_str(t):
+    
+    '''Convert seconds to days:hours:minutes:seconds'''
+    
+    [d, h, m, s, n] = reduce(lambda ll, b : divmod(ll[0], b) + ll[1:], [(t, 1), 60, 60, 24])
+    f = ''
+    if d > 0:
+        f += '{D}d:'.format(D=d)
+    if h > 0:
+        f += '{H}h:'.format(H=h)
+    if m > 0:
+        f += '{M}m:'.format(M=m)
+
+    f += '{S}s'.format(S=s)
+    return f
+    
+def construct_graph(args):
+
+    # Load pre-processed datasets
+    v = pd.read_csv(args.v_input, index_col=False, delim_whitespace=True)
+    e = pd.read_csv(args.e_input, index_col=False, delim_whitespace=True)
+
+    logging.info("Setting up graph data with {} nodes, {} edges and {} clusters".format(v.shape[0], e.shape[0], len(v["cluster"].unique())))
+
+    # Coin dataframes into SQL for graphframes
+    v_schema = StructType([StructField("id", IntegerType(), True),
+                           StructField("cluster", IntegerType(), True)])
+    v = sql_context.createDataFrame(v, schema = v_schema).dropDuplicates(['id'])
+
+    e_schema = StructType([StructField("src", IntegerType(), True), 
+                        StructField("dst", IntegerType(), True)])
+    e = sql_context.createDataFrame(e, schema = e_schema)
+
+    # Generate graph before simulation starts
+    g = GF.GraphFrame(v, e)
+    
+    return g
+
+def save_sim(args, nodes_counter, duration):
+
+    # write population size table
+    nodes_counter.to_csv(args.out+".txt", sep='\t', index=False, na_rep="NA")
+
+    # write duration and parameters
+    summary = "\n Summary of simulation: \n"
+    summary += "------------------------------------- \n"
+    summary += "Duration: " + str(duration) + '\n'
+    summary += "------------------------------------- \n"
+    summary += "p_is: " + str(args.p_is) + '\n'
+    summary += "------------------------------------- \n"
+    summary += "p_id: " + str(args.p_id) + '\n'
+    summary += "------------------------------------- \n"
+    summary += "p_ih: " + str(args.p_ih) + '\n'
+    summary += "------------------------------------- \n"
+    summary += "p_ir: " + str(args.p_ir) + '\n'
+    summary += "------------------------------------- \n"
+    summary += "p_hr: " + str(args.p_hr) + '\n'
+    summary += "------------------------------------- \n"
+    summary += "p_hd: " + str(args.p_hd) + '\n'
+    summary += "------------------------------------- \n"
+    summary += "t_latent: " + str(args.t_latent) + '\n'
+    summary += "------------------------------------- \n"
+    summary += "t_infectious: " + str(args.t_infectious) + '\n'
+
+    # save summary
+    logging.info(summary)
+
+    return 0
+    
 #### =================================
 ####  GRAPH UPDATING FUNCTIONS
 #### =================================
@@ -167,7 +271,7 @@ def S_flow(g, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, 
                     if flip == 1: #Infect others
                         new_E_nodes.append(infected)
                         e_nodes.append(infected)
-                        s_nodes.remove(infected)               
+                        s_nodes.remove(infected) 
 
         else: # if I node is no longer infectious (i.e. i_days > t_infectious), go to one of R,H,D
             i_nodes.remove(node)
@@ -220,7 +324,7 @@ def simulate(g,
     # ADD "neighbors" column: select neighbors of a node based on a graph (used in S_flow step)
     neighbor = g.find("(a)-[e]->(b)").drop("e").groupBy('a.id').agg(collect_list('b.id').alias('neighbors'))
     g_neighbor = neighbor.join(g.vertices, ['id'], "right_outer")
-    g = GF.GraphFrame(g_neighbor, e)
+    g = GF.GraphFrame(g_neighbor, g.edges)
 
     # ADD "state" column
     # At t0: number of I nodes and H nodes are based on user-defined functions. ALL OTHER NODES are assumed to be S
@@ -228,9 +332,9 @@ def simulate(g,
     
     # ADD "i_days" and "e_days" column 
     # At t0: 1 for all I_nodes and 0 for all others
-    g_temp = g_temp.withColumn("e_days", lit(0))
-    g_temp = g_temp.withColumn("i_days", when(g.vertices.id.isin(i_nodes), lit(1)).otherwise(lit(0)))
-    g = GF.GraphFrame(g_temp, e)
+    g_temp = g_temp.withColumn("i_days", lit(0))
+    g_temp = g_temp.withColumn("e_days", when(g.vertices.id.isin(e_nodes), lit(1)).otherwise(lit(0)))
+    g = GF.GraphFrame(g_temp, g.edges)
 
     # TO DO: allow p_is to be a vector of rates (time-dependent)
     for step in range(1, num_time_steps+1):
@@ -250,7 +354,7 @@ def simulate(g,
         g_temp = g_temp.withColumn("e_days", when(g_temp.id.isin(new_E_nodes), 1).otherwise(when(g_temp.id.isin(old_E_nodes), g_temp.e_days+1).otherwise(0)))
         
         # finish upating the vertices --> let's update the graph!
-        g = GF.GraphFrame(g_temp, e)
+        g = GF.GraphFrame(g_temp, g.edges)
 
         duration += 1
         
@@ -262,61 +366,64 @@ def simulate(g,
     
     return nodes_counter, duration
 
-#### =================================
-####  TESTING TOY EXAMPLE
-#### =================================
 
-#The following part with be substituted with data import and reformatting
+#### ====================================
+####  MAIN FUNCTIONS (interface with bash)
+#### ====================================
+## Argument parsers
+parser=argparse.ArgumentParser(description="\n Monte Carlo simulation of disease transmission using different parameter values")
 
-# Start with dataframes in pandas
-sim_pop_size = 100
-sim_edge_count = 200
-sim_n_cluster = 3
-print("Setting up graph data with {} nodes, {} edges and {} clusters".format(sim_pop_size, sim_edge_count, sim_n_cluster))
+# Flags for probability parameters
+probParam = parser.add_argument_group(title="Transition probabilities", description="Flags used to specify the transition probabilities from one state to another.")
+probParam.add_argument('--p_is', default=0.5, type=float, help='User specified probability of infection. Default is 0.5.')
+probParam.add_argument('--p_id', default=0.02, type=float, help='User specified transition probability from I to D for the UNHOSPITALIZED individuals. Default is 0.02.')
+probParam.add_argument('--p_ih', default=0.06, type=float, help='User specified transition probability from I to H. Default is 0.06.')
+probParam.add_argument('--p_ir', default=0.13, type=float, help='User specified transition probability from I to R. Default is 0.13.')
+probParam.add_argument('--p_hr', default=0.07, type=float, help='User specified transition probability from H to R. Default is 0.07.')
+probParam.add_argument('--p_hd', default=0.04, type=float, help='User specified transition probability from H to D. Default is 0.04.')
 
-v = pd.DataFrame({'id' : [i for i in range(sim_pop_size)],
-    'age' : list(np.random.randint(100, size=sim_pop_size)),
-    'sex' : list(np.random.randint(2, size=sim_pop_size)),
-    'cluster' : list(np.random.randint(8, size=sim_pop_size))
-})
+# Flags for duration (periods)
+durationParam = parser.add_argument_group(title="Duration lengths", description="Flags used to specify the infectious period and the latent period.")
+probParam.add_argument('--t_latent', default=7, type=int, help='User specified duration of latent, i.e. how long an Exposed node becomes I node and can start infecting other people. Default is 7.')
+probParam.add_argument('--t_infectious', default=5, type=float, help='User specified duration of infectious, i.e. how long an I node is infectious for. After t_infectious days, an I node is no longer infectious. Default is 5.')
 
-e = pd.DataFrame(columns=["src","dst"], index=[i for i in range(sim_edge_count)])
-for i in range(sim_edge_count):
-    e.loc[i, "src"] = random.sample(list(v["id"]), 1)[0]
-    e.loc[i, "dst"] = random.sample(list(set(v["id"])-set([e.loc[i, "src"]])), 1)[0]
+# Flags for initialization
+initNodes = parser.add_argument_group(title="Initial state setup", description="Set the initial states of the nodes")
+initNodes.add_argument('--num_i_seeds', default=100, type=int, help='Number of I nodes in initial stage. Default is 100.')
+initNodes.add_argument('--num_s_seeds', default=500, type=int, help='Number of S nodes in initial stage. Default is 500.')
+initNodes.add_argument('--num_h_seeds', default=100, type=int, help='Number of S nodes in initial stage. Default is 100.')
+initNodes.add_argument('--num_time_steps', default=20, type=int, help='Number of maximum days to simulate. Default is 20.')
 
-# Coin dataframes into SQL for graphframes
-v_schema = StructType([StructField("id", IntegerType(), True), 
-                     StructField("age", IntegerType(), True),
-                     StructField("sex", IntegerType(), True),
-                     StructField("cluster", IntegerType(), True)])
-v = sql_context.createDataFrame(v, schema = v_schema).dropDuplicates(['id'])
+# Input file paths 
+# important NOTE: the input should be the pre-processed network datasets - v_input requires "id"; e_input requires "src" and "dst"
+ifile = parser.add_argument_group(title="Input Options", description="Input options to load network data.")
+ifile.add_argument('--v_input', metavar='FILE_PATH', type=str, help='File path to the network data that contains the preprocessed vertices data.')
+ifile.add_argument('--e_input', metavar='FILE_PATH', type=str, help='File path to the network data that contains the preprocessed edges data.')
 
-e_schema = StructType([StructField("src", IntegerType(), True), 
-                     StructField("dst", IntegerType(), True)])
-e = sql_context.createDataFrame(e, schema = e_schema)
+# Output file paths
+ofile = parser.add_argument_group(title="Output Options", description="Output directory and options to write to files.")
+ofile.add_argument('--out', default='sim', metavar='FILE_PREFIX', type=str, help='File path to write the simulation results.')
+ofile.add_argument("--make-full-path", default=False, action="store_true", help="option to make output path specified in --out if it does not exist. Default is False.")
 
-# Generate graph before simulation starts
-g = GF.GraphFrame(v, e)
+########################################################
 
-# Define parameters
-p_is = 0.5
-p_id = 0.0419
-p_ih = 0.0678
-p_ir = 0.0945*2
-p_hr = 0.03945
-p_hd = 0.0419
+if __name__ == '__main__':
+    args = parser.parse_args()
+    start_time = time.time()
+    logging.basicConfig(format='%(asctime)s %(message)s', filename=args.out + '.log', filemode='w', level=logging.INFO,datefmt='%Y/%m/%d %I:%M:%S %p')
 
-t_latent = 7
-t_infectious = 5
+    g = construct_graph(args)
 
-num_i_seeds = 10
-num_s_seeds = 30
-num_h_seeds = 2
-num_time_steps = 5
+    try:
+        nodes_counter, duration = simulate(g, args.p_is, args.p_id, args.p_ih, args.p_ir, args.p_hr, args.p_hd, args.t_latent, args.t_infectious, args.num_i_seeds, args.num_s_seeds, args.num_h_seeds, args.num_time_steps)
+        save_sim(args, nodes_counter, duration)
 
-# Run simulations
-nodes_counter, duration = simulate(g, p_is, p_id, p_ih, p_ir, p_hr, p_hd, t_latent, t_infectious, num_i_seeds, num_s_seeds, num_h_seeds, num_time_steps)
-print("Evolvement of nodes in each category")
-print(nodes_counter)
-print("Duration: {}".format(duration))
+    except Exception:
+        ex_type, ex, tb = sys.exc_info()
+        logging.info( traceback.format_exc(ex) )
+        raise
+
+    finally:
+        logging.info('Analysis finished at {T}'.format(T=time.ctime()) )
+        # time_elapsed = round(time.time()-start_time,2)
+        # logging.info('Simulation complete. Time elapsed: {T}'.format(T=sec_to_str(time_elapsed)))

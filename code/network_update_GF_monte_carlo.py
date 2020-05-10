@@ -327,6 +327,15 @@ def simulate(g,
     g_neighbor = neighbor.join(g.vertices, ['id'], "right_outer")
     g = GF.GraphFrame(g_neighbor, g.edges)
 
+    i_nodes_2 = []
+    s_nodes_2 = []
+    for i in i_nodes:
+        i_nodes_2.append(int(i))
+    i_nodes = i_nodes_2
+    for s in s_nodes:
+        s_nodes_2.append(int(s))
+    s_nodes = s_nodes_2
+   
     # ADD "state" column
     # At t0: number of I nodes and H nodes are based on user-defined functions. ALL OTHER NODES are assumed to be S
     g_temp = g.vertices.withColumn("state",when(g.vertices.id.isin(i_nodes), "I").otherwise(when(g.vertices.id.isin(h_nodes), "H").otherwise("S")))

@@ -226,6 +226,15 @@ def simulate(g,
     g_neighbor = neighbor.join(g.vertices, ['id'], "right_outer")
     g = GF.GraphFrame(g_neighbor, e)
 
+    i_nodes_2 = []
+    s_nodes_2 = []
+    for i in i_nodes:
+        i_nodes_2.append(int(i))
+    i_nodes = i_nodes_2
+    for s in s_nodes:
+        s_nodes_2.append(int(s))
+    s_nodes = s_nodes_2
+
     # ADD "state" column
     # At t0: number of I nodes and H nodes are based on user-defined functions. ALL OTHER NODES are assumed to be S
     g_temp = g.vertices.withColumn("state",when(g.vertices.id.isin(i_nodes), "I").otherwise(when(g.vertices.id.isin(h_nodes), "H").otherwise("S")))
@@ -288,6 +297,9 @@ e = pd.DataFrame(columns=["src","dst"], index=[i for i in range(sim_edge_count)]
 for i in range(sim_edge_count):
     e.loc[i, "src"] = random.sample(list(v["id"]), 1)[0]
     e.loc[i, "dst"] = random.sample(list(set(v["id"])-set([e.loc[i, "src"]])), 1)[0]
+
+e['src'] = e['src'].astype(int)
+e['dst'] = e['dst'].astype(int)
 
 # Coin dataframes into SQL for graphframes
 v_schema = StructType([StructField("id", IntegerType(), True), 

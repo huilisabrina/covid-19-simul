@@ -1,29 +1,21 @@
 #!/bin/bash
 
-#-------------------------------------------------------
+#------------------------------------------------------------------------
 # CS 205 Final Project
-# Wrapper script for Monte Carlo simulation
-#-------------------------------------------------------
+# Wrapper script for Monte Carlo simulation with cluster parallelization
+#
+# The following files must be in the same folder as this script:
+#   preprocess_network.py
+#   params_input.csv
+#   edge_list.csv
+#------------------------------------------------------------------------
 
+# set working directory
 wd_dir="/home/ubuntu/CS205_FinalProject/testing"
 cd $wd_dir
 
 # preprocess the HIV datasets
-python preprocess_network.py
-
-#### =================================
-####  SINGLE RUN TEST
-#### =================================
-# run simulation pipeline (default parameters)
-spark-submit --packages graphframes:graphframes:0.6.0-spark2.3-s_2.11 \
-            network_update_GF_monte_carlo.py \
-            --v_input "v_orig.txt" \
-            --e_input "e_orig.txt" \
-            --num_i_seeds 20 \
-            --num_s_seeds 50 \
-            --num_h_seeds 2 \
-            --num_time_steps 5 \
-            --out "sim_test"
+python preprocess_network_clusters.py
 
 #### =================================
 ####  MONTE CARLO SIMULATIONS
@@ -39,15 +31,17 @@ while IFS= read -r line;do
     sim_counter = sim_counter + 1
     echo "Begin simulation: $sim_counter"
 
-    # cluster-level parallelization
+    # Cluster-level parallelization
+    all_cluster_names = ()
     for file in v_orig_cluster_*.csv; do
 
-        # extract cluster number
+        # Extract cluster name
         cluster_name = ${file:14:1}
+        all_cluster_names += $cluster_name
 
-        # define cluster vertex and edge input files
-        v_input_name = "v_orig_${cluster_name}.txt"
-        e_input_name = "e_orig_${cluster_name}.txt"
+        # Define cluster vertex and edge input files
+        v_input_name = "v_orig_cluster_${cluster_name}.txt"
+        e_input_name = "e_orig_cluster_${cluster_name}.txt"
         
         echo "Begin cluster: ${cluster_name}"
         spark-submit --packages graphframes:graphframes:0.6.0-spark2.3-s_2.11 network_update_GF_monte_carlo.py \
@@ -69,11 +63,15 @@ while IFS= read -r line;do
 
     done        
 
+    # Combine results for full graph
+    echo "Combining results across clusters"
     python combine_clusters.py \
-            --n_clusters 8 \
-            --input "sim_${sim_counter}_${cluster_name}.txt" \
-            --out full_graph
+            --names ${all_cluster_names} \
+            --input "sim_${sim_counter}" \
+            --out "full_graph"
 
     echo "Finish simulation: $sim_counter"
     sleep 3
+    
 done < MC_param_input.csv
+

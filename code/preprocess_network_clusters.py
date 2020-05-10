@@ -3,7 +3,9 @@
 #-------------------------------------------------------
 # CS 205 Final Project
 # Preprocess the HIV dataset 
-# Prepare network input dataset (incorporate assumptions)
+# Prepare network input datasets (incorporate assumptions)
+#
+# To be called by monte_carlo_sim_clusters.bash
 #-------------------------------------------------------
 
 import random
@@ -37,9 +39,6 @@ e_df["src"] = e_df["ID1"].str.slice(start=0, stop=-2, step=1)
 e_df["dst"] = e_df["ID2"].str.slice(start=0, stop=-2, step=1)
 e_df = e_df[["src","dst", "STUDYNUM"]]
 
-# Save to files
-# v_df.to_csv("v_orig".txt", sep='\t', index=False, na_rep="NA")
-# e_df.to_csv("e_orig.txt", sep='\t', index=False, na_rep="NA")
 
 # Split up data by study number, defined through "cluster" column
 for cluster in list(set(cluster_list)):
@@ -50,6 +49,7 @@ for cluster in list(set(cluster_list)):
     print("cluster_e_df")
 
     # Save to files
+    # Output a separate csv file for each edge set and vertex set for each cluster
     cluster_v_df.to_csv("v_orig_cluster_" + cluster + ".txt", sep='\t', index=False, na_rep="NA")
     cluster_e_df.to_csv("e_orig_cluster_" + cluster + ".txt", sep='\t', index=False, na_rep="NA")
 

@@ -1,16 +1,16 @@
-#---------------------------------------------- 
+#------------------------------------------------------
 # CS 205 Final Project
-# Cluster combining functions for final output
+# Combine results across clusters for full graph output
 #
-# To be called by monte_carlo_sim.bash
-#----------------------------------------------
+# To be called by monte_carlo_sim_clusters.bash
+#------------------------------------------------------
 
 ## Argument parsers
 parser=argparse.ArgumentParser(description="\n Combination of results across study clusters")
 
 # Flags for clusters
 clusterParam = parser.add_argument_group(title="Cluster properties", description="Flags used to specify the cluster properties of the network graph.")
-clusterParam.add_argument('--n_clusters', default=8, type=int, help='Number of disjoint clusters (connected components) in the network graph')
+clusterParam.add_argument('--names', default=8, type=int, help='Names of the disjoint clusters (connected components) in the network graph')
 
 # Input file paths 
 ifile = parser.add_argument_group(title="Input Options", description="Input options to load network data.")
@@ -21,15 +21,27 @@ ofile = parser.add_argument_group(title="Output Options", description="Output di
 ofile.add_argument('--out', default='sim', metavar='FILE_PREFIX', type=str, help='File path to write the simulation results.')
 ofile.add_argument("--make-full-path", default=False, action="store_true", help="option to make output path specified in --out if it does not exist. Default is False.")
 
+#######################################################
+
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    # Load pre-processed datasets
-    n_clusters = args.n_clusters
-    pd.read_csv(args.v_input, index_col=False, delim_whitespace=True)
-    v = pd.read_csv(args.v_input, index_col=False, delim_whitespace=True)
-    e = pd.read_csv(args.e_input, index_col=False, delim_whitespace=True)
+    # Initialize full graph dataframe
+    agg_df = pd.DataFrame(columns=["n_{}".format(x) for x in ['s','e','i','r','h','d']], index=[i for i in range(num_time_steps)])
+    agg_df["duration"] = 0
 
+    # For each cluster, load output and add results element-wise to the full graph dataframe
+    duration = 0
+    for name in args.names
 
+        temp_df = pd.read_csv(args.input + "_" + name +".txt", index_col=False, delim_whitespace=True)
+        temp_dur = temp_df.at[0, 'duration']
+        if temp_dur > duration:
+            duration = temp_dur
+        agg_df.add(temp_df, fill_value = 0)
 
-    logging.info("Setting up graph data with {} nodes, {} edges and {} clusters".format(v.shape[0], e.shape[0], len(v["cluster"].unique())))
+    # Set duration to be the longest epidemic duration across clusters
+    agg_df["duration"] = duration
+
+    # Save results in csv file
+    agg_df.to_csv(args.out+".txt", sep='\t', index=False, na_rep="NA")

@@ -51,6 +51,8 @@ from pyspark.sql.types import *
 conf = SparkConf().setMaster('local[4]').setAppName('template')
 # Spark context
 sc = SparkContext(conf=conf)
+# surpress logging
+sc.setLogLevel("ERROR")
 # Create an SQL context:
 sql_context = SQLContext(sc)
 

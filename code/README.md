@@ -26,6 +26,10 @@
 
    A command line tool version of `network_updates_GF.py` that are callable from `bash`. Useful for Monte Carlo simulations. __All latest changes and functional improvements to network_update should be reflected in here.__ 
 
+* `monte_carlo.bash`:
+
+   Master script that calls the network update functions, using an Excel file that specifies parameter values for each run. 
+   
 * `preprocess_network.py`:
 
    Pre-process the network datasets and format it as inputs to the Monte Carlo algorithm. *This script can also be used to modify our network data (e.g. enlarge the network size, add edges, etc.) to test assumptions.*

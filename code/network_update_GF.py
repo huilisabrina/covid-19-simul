@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 #-------------------------------------------------------
 # CS 205 Final Project
 # Network updating functions with GF integrated
@@ -75,6 +74,9 @@ def H_flow(h_nodes, r_nodes, d_nodes, p_hr, p_hd):
 
     new_recoveries = []
     new_deaths = []
+
+    if len(h_nodes) == 0:
+        return(0)
 
     for node in h_nodes:
         dst_state = np.random.multinomial(1, [p_hr, p_hd, 1-p_hr-p_hd])
@@ -161,13 +163,15 @@ def S_flow(g, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, 
                 i_nodes.remove(node)
                 send_I(node, r_nodes, h_nodes, d_nodes, p_id, p_ih, p_ir)
             else:
-                infected = random.choice(neighbors)
-                if infected in s_nodes: #One infection per person per period
-                    flip = np.random.binomial(1, p_is)
-                    if flip == 1: #Infect others
-                        new_E_nodes.append(infected)
-                        e_nodes.append(infected)
-                        s_nodes.remove(infected)               
+                for this_neighbor in neighbors: #take a Bernoulli approach to infection
+                    if this_neighbor in s_nodes: 
+                        # every susceptible neighbor gets a coin-flip
+                        flip = np.random.binomial(1, p_is) 
+                        if flip == 1: #Infect others
+                            infected = this_neighbor
+                            new_E_nodes.append(infected)
+                            e_nodes.append(infected)
+                            s_nodes.remove(infected)               
 
         else: # if I node is no longer infectious (i.e. i_days > t_infectious), go to one of R,H,D
             i_nodes.remove(node)
@@ -201,14 +205,14 @@ def send_I(i_node, r_nodes, h_nodes, d_nodes, p_id, p_ih, p_ir):
 def simulate(g, 
              p_is, p_id, p_ih, p_ir, p_hr, p_hd, 
              t_latent, t_infectious, 
-             num_i_seeds, num_s_seeds, num_h_seeds, num_time_steps):
+             num_i_seeds, num_h_seeds, num_time_steps):
 
     # select the vertices as a list
     nodes = list(g.vertices.select("id").toPandas()["id"])
     
     i_nodes = list(random.sample(nodes, num_i_seeds))
-    s_nodes = list(random.sample(set(nodes) - set(i_nodes), num_s_seeds))
-    h_nodes = list(random.sample(set(nodes) - set(i_nodes) - set(s_nodes), num_h_seeds)) #Need initial values for first round of updating
+    s_nodes = list(set(nodes) - set(i_nodes))
+    h_nodes = []
     e_nodes = []
     r_nodes = []
     d_nodes = []
@@ -260,6 +264,7 @@ def simulate(g,
         
         nodes_counter.loc[step] = [len(s_nodes),len(e_nodes),len(i_nodes), len(r_nodes), len(h_nodes), len(d_nodes)] 
     
+    print(len(nodes))
     return nodes_counter, duration
 
 #### =================================
@@ -270,14 +275,14 @@ def simulate(g,
 
 # Start with dataframes in pandas
 sim_pop_size = 100
-sim_edge_count = 200
+sim_edge_count = 500
 sim_n_cluster = 3
 print("Setting up graph data with {} nodes, {} edges and {} clusters".format(sim_pop_size, sim_edge_count, sim_n_cluster))
 
 v = pd.DataFrame({'id' : [i for i in range(sim_pop_size)],
     'age' : list(np.random.randint(100, size=sim_pop_size)),
     'sex' : list(np.random.randint(2, size=sim_pop_size)),
-    'cluster' : list(np.random.randint(8, size=sim_pop_size))
+    'cluster' : list(np.random.randint(sim_n_cluster, size=sim_pop_size))
 })
 
 e = pd.DataFrame(columns=["src","dst"], index=[i for i in range(sim_edge_count)])
@@ -290,7 +295,10 @@ v_schema = StructType([StructField("id", IntegerType(), True),
                      StructField("age", IntegerType(), True),
                      StructField("sex", IntegerType(), True),
                      StructField("cluster", IntegerType(), True)])
-v = sql_context.createDataFrame(v, schema = v_schema).dropDuplicates(['id'])
+#v = sql_context.createDataFrame(v, schema = v_schema).dropDuplicates(['id'])
+# ^ the above line leads to a random number of nodes in the graph. 
+
+v = sql_context.createDataFrame(v, schema = v_schema) 
 
 e_schema = StructType([StructField("src", IntegerType(), True), 
                      StructField("dst", IntegerType(), True)])
@@ -300,7 +308,7 @@ e = sql_context.createDataFrame(e, schema = e_schema)
 g = GF.GraphFrame(v, e)
 
 # Define parameters
-p_is = 0.5
+p_is = 0.05
 p_id = 0.0419
 p_ih = 0.0678
 p_ir = 0.0945*2
@@ -310,13 +318,15 @@ p_hd = 0.0419
 t_latent = 7
 t_infectious = 5
 
-num_i_seeds = 10
-num_s_seeds = 30
+num_i_seeds = 11
 num_h_seeds = 2
-num_time_steps = 5
+num_time_steps = 15
 
 # Run simulations
-nodes_counter, duration = simulate(g, p_is, p_id, p_ih, p_ir, p_hr, p_hd, t_latent, t_infectious, num_i_seeds, num_s_seeds, num_h_seeds, num_time_steps)
+nodes_counter, duration = simulate(g, p_is, p_id, p_ih, p_ir, p_hr, p_hd, 
+t_latent, t_infectious, num_i_seeds, num_h_seeds, num_time_steps)
+
 print("Evolvement of nodes in each category")
+#print("Initial Total Nodes:", len(list(g.vertices.select("id").toPandas()["id"])))
 print(nodes_counter)
 print("Duration: {}".format(duration))

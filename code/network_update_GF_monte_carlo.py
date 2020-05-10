@@ -63,6 +63,8 @@ from pyspark.sql.types import *
 conf = SparkConf().setMaster('local[4]').setAppName('run_test_MC')
 # Spark context
 sc = SparkContext(conf=conf)
+# surpress logging
+sc.setLogLevel("ERROR")
 # Create an SQL context:
 sql_context = SQLContext(sc)
 
@@ -180,6 +182,9 @@ def H_flow(h_nodes, r_nodes, d_nodes, p_hr, p_hd):
     new_recoveries = []
     new_deaths = []
 
+    if len(h_nodes) == 0:
+        return(0)
+
     for node in h_nodes:
         dst_state = np.random.multinomial(1, [p_hr, p_hd, 1-p_hr-p_hd])
         dst_index = np.argwhere(dst_state==1)[0,0]
@@ -245,11 +250,7 @@ def E_flow(g, e_nodes, i_nodes, t_latent):
 
 #Carry out the I --> S --> E spreading process for one time step.
 def S_flow(g, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, p_ih, p_ir, t_infectious):
-    """
-    TO DO: allow one node in Infected to affect multiple nodes in S.
 
-    Currently, one I node can only affect one S.
-    """
     new_E_nodes = []
     for node in i_nodes:
         # extract i_days from the graph
@@ -305,14 +306,14 @@ def send_I(i_node, r_nodes, h_nodes, d_nodes, p_id, p_ih, p_ir):
 def simulate(g, 
              p_is, p_id, p_ih, p_ir, p_hr, p_hd, 
              t_latent, t_infectious, 
-             num_i_seeds, num_s_seeds, num_h_seeds, num_time_steps):
+             num_i_seeds, num_time_steps):
 
     # select the vertices as a list
     nodes = list(g.vertices.select("id").toPandas()["id"])
     
     i_nodes = list(random.sample(nodes, num_i_seeds))
-    s_nodes = list(random.sample(set(nodes) - set(i_nodes), num_s_seeds))
-    h_nodes = list(random.sample(set(nodes) - set(i_nodes) - set(s_nodes), num_h_seeds)) #Need initial values for first round of updating
+    s_nodes = list(set(nodes) - set(i_nodes))
+    h_nodes = []
     e_nodes = []
     r_nodes = []
     d_nodes = []
@@ -363,7 +364,7 @@ def simulate(g,
             break
         
         nodes_counter.loc[step] = [len(s_nodes),len(e_nodes),len(i_nodes), len(r_nodes), len(h_nodes), len(d_nodes)] 
-    
+
     return nodes_counter, duration
 
 
@@ -378,20 +379,18 @@ probParam = parser.add_argument_group(title="Transition probabilities", descript
 probParam.add_argument('--p_is', default=0.5, type=float, help='User specified probability of infection. Default is 0.5.')
 probParam.add_argument('--p_id', default=0.02, type=float, help='User specified transition probability from I to D for the UNHOSPITALIZED individuals. Default is 0.02.')
 probParam.add_argument('--p_ih', default=0.06, type=float, help='User specified transition probability from I to H. Default is 0.06.')
-probParam.add_argument('--p_ir', default=0.13, type=float, help='User specified transition probability from I to R. Default is 0.13.')
-probParam.add_argument('--p_hr', default=0.07, type=float, help='User specified transition probability from H to R. Default is 0.07.')
+probParam.add_argument('--p_ir', default=0.3, type=float, help='User specified transition probability from I to R. Default is 0.3.')
+probParam.add_argument('--p_hr', default=0.15, type=float, help='User specified transition probability from H to R. Default is 0.15.')
 probParam.add_argument('--p_hd', default=0.04, type=float, help='User specified transition probability from H to D. Default is 0.04.')
 
 # Flags for duration (periods)
 durationParam = parser.add_argument_group(title="Duration lengths", description="Flags used to specify the infectious period and the latent period.")
-probParam.add_argument('--t_latent', default=7, type=int, help='User specified duration of latent, i.e. how long an Exposed node becomes I node and can start infecting other people. Default is 7.')
-probParam.add_argument('--t_infectious', default=5, type=float, help='User specified duration of infectious, i.e. how long an I node is infectious for. After t_infectious days, an I node is no longer infectious. Default is 5.')
+durationParam.add_argument('--t_latent', default=5, type=int, help='User specified duration of latent, i.e. how long an Exposed node becomes I node and can start infecting other people. Default is 5.')
+durationParam.add_argument('--t_infectious', default=5, type=float, help='User specified duration of infectious, i.e. how long an I node is infectious for. After t_infectious days, an I node is no longer infectious. Default is 5.')
 
 # Flags for initialization
 initNodes = parser.add_argument_group(title="Initial state setup", description="Set the initial states of the nodes")
 initNodes.add_argument('--num_i_seeds', default=100, type=int, help='Number of I nodes in initial stage. Default is 100.')
-initNodes.add_argument('--num_s_seeds', default=500, type=int, help='Number of S nodes in initial stage. Default is 500.')
-initNodes.add_argument('--num_h_seeds', default=100, type=int, help='Number of S nodes in initial stage. Default is 100.')
 initNodes.add_argument('--num_time_steps', default=20, type=int, help='Number of maximum days to simulate. Default is 20.')
 
 # Input file paths 
@@ -415,7 +414,7 @@ if __name__ == '__main__':
     g = construct_graph(args)
 
     try:
-        nodes_counter, duration = simulate(g, args.p_is, args.p_id, args.p_ih, args.p_ir, args.p_hr, args.p_hd, args.t_latent, args.t_infectious, args.num_i_seeds, args.num_s_seeds, args.num_h_seeds, args.num_time_steps)
+        nodes_counter, duration = simulate(g, args.p_is, args.p_id, args.p_ih, args.p_ir, args.p_hr, args.p_hd, args.t_latent, args.t_infectious, args.num_i_seeds, args.num_time_steps)
         save_sim(args, nodes_counter, duration)
 
     except Exception:
@@ -425,5 +424,5 @@ if __name__ == '__main__':
 
     finally:
         logging.info('Analysis finished at {T}'.format(T=time.ctime()) )
-        # time_elapsed = round(time.time()-start_time,2)
-        # logging.info('Simulation complete. Time elapsed: {T}'.format(T=sec_to_str(time_elapsed)))
+        time_elapsed = round(time.time()-start_time,2)
+        logging.info('Simulation complete. Time elapsed: {T}'.format(T=sec_to_str(time_elapsed)))

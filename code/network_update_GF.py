@@ -58,6 +58,10 @@ from pyspark.sql.types import *
 conf = SparkConf().setMaster('local[4]').setAppName('run_test_GF')
 # Spark context
 sc = SparkContext(conf=conf)
+
+# surpress logging
+sc.setLogLevel("ERROR")
+
 # Create an SQL context:
 sql_context = SQLContext(sc)
 
@@ -143,11 +147,7 @@ def E_flow(g, e_nodes, i_nodes, t_latent):
 
 #Carry out the I --> S --> E spreading process for one time step.
 def S_flow(g, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, p_ih, p_ir, t_infectious):
-    """
-    TO DO: allow one node in Infected to affect multiple nodes in S.
 
-    Currently, one I node can only affect one S.
-    """
     new_E_nodes = []
     for node in i_nodes:
         # extract i_days from the graph
@@ -205,7 +205,7 @@ def send_I(i_node, r_nodes, h_nodes, d_nodes, p_id, p_ih, p_ir):
 def simulate(g, 
              p_is, p_id, p_ih, p_ir, p_hr, p_hd, 
              t_latent, t_infectious, 
-             num_i_seeds, num_h_seeds, num_time_steps):
+             num_i_seeds, num_time_steps):
 
     # select the vertices as a list
     nodes = list(g.vertices.select("id").toPandas()["id"])
@@ -264,14 +264,13 @@ def simulate(g,
         
         nodes_counter.loc[step] = [len(s_nodes),len(e_nodes),len(i_nodes), len(r_nodes), len(h_nodes), len(d_nodes)] 
     
-    print(len(nodes))
     return nodes_counter, duration
 
 #### =================================
 ####  TESTING TOY EXAMPLE
 #### =================================
 
-#The following part with be substituted with data import and reformatting
+# THE FOLLOWING PART ARE REPLACED BY REAL DATASET IN "network_update_GF_monte_carlo.py"
 
 # Start with dataframes in pandas
 sim_pop_size = 100
@@ -308,23 +307,22 @@ e = sql_context.createDataFrame(e, schema = e_schema)
 g = GF.GraphFrame(v, e)
 
 # Define parameters
-p_is = 0.05
-p_id = 0.0419
+p_is = 0.5
+p_id = 0.0134
 p_ih = 0.0678
-p_ir = 0.0945*2
-p_hr = 0.03945
+p_ir = 0.3945
+p_hr = 0.3945/2
 p_hd = 0.0419
 
-t_latent = 7
+t_latent = 5
 t_infectious = 5
 
-num_i_seeds = 11
-num_h_seeds = 2
-num_time_steps = 15
+num_i_seeds = 20
+num_time_steps = 3
 
 # Run simulations
 nodes_counter, duration = simulate(g, p_is, p_id, p_ih, p_ir, p_hr, p_hd, 
-t_latent, t_infectious, num_i_seeds, num_h_seeds, num_time_steps)
+t_latent, t_infectious, num_i_seeds, num_time_steps)
 
 print("Evolvement of nodes in each category")
 #print("Initial Total Nodes:", len(list(g.vertices.select("id").toPandas()["id"])))

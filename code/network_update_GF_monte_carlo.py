@@ -339,32 +339,36 @@ def simulate(g,
 
     # TO DO: allow p_is to be a vector of rates (time-dependent)
     for step in range(1, num_time_steps+1):
-        H_flow(h_nodes, r_nodes, d_nodes, p_hr, p_hd)
-        I_flow(i_nodes, r_nodes, h_nodes, d_nodes, p_id, p_ih, p_ir)
-        new_I_nodes = E_flow(g, e_nodes, i_nodes, t_latent)
-        new_E_nodes = S_flow(g, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, p_ih, p_ir, t_infectious)
-                   
-        # update the state column using the new lists ("x_nodes")
-        g_temp = g.vertices.withColumn("state", when(g.vertices.id.isin(s_nodes), "S").otherwise(when(g.vertices.id.isin(e_nodes), "E").otherwise(when(g.vertices.id.isin(i_nodes), "I").otherwise(when(g.vertices.id.isin(r_nodes), "R").otherwise(when(g.vertices.id.isin(h_nodes), "H").otherwise("D"))))))
-
-        # update i_days and e_days (1. initialize to zero the newly turned I nodes; 2. add one to previously exposed or infectious nodes)
-        old_I_nodes = list(set(i_nodes) - set(new_I_nodes))
-        g_temp = g_temp.withColumn("i_days", when(g_temp.id.isin(new_I_nodes), 1).otherwise(when(g_temp.id.isin(old_I_nodes), g_temp.i_days+1).otherwise(0)))
-
-        old_E_nodes = list(set(e_nodes) - set(new_E_nodes))
-        g_temp = g_temp.withColumn("e_days", when(g_temp.id.isin(new_E_nodes), 1).otherwise(when(g_temp.id.isin(old_E_nodes), g_temp.e_days+1).otherwise(0)))
         
-        # finish upating the vertices --> let's update the graph!
-        g = GF.GraphFrame(g_temp, g.edges)
+        # spread simulation if still nodes in S, E, I, or H states
+        if (s_nodes >0) or (e_nodes > 0) or (i_nodes > 0) or (h_nodes > 0):
+            H_flow(h_nodes, r_nodes, d_nodes, p_hr, p_hd)
+            I_flow(i_nodes, r_nodes, h_nodes, d_nodes, p_id, p_ih, p_ir)
+            new_I_nodes = E_flow(g, e_nodes, i_nodes, t_latent)
+            new_E_nodes = S_flow(g, s_nodes, e_nodes, i_nodes, r_nodes, h_nodes, d_nodes, p_is, p_id, p_ih, p_ir, t_infectious)
+                    
+            # update the state column using the new lists ("x_nodes")
+            g_temp = g.vertices.withColumn("state", when(g.vertices.id.isin(s_nodes), "S").otherwise(when(g.vertices.id.isin(e_nodes), "E").otherwise(when(g.vertices.id.isin(i_nodes), "I").otherwise(when(g.vertices.id.isin(r_nodes), "R").otherwise(when(g.vertices.id.isin(h_nodes), "H").otherwise("D"))))))
 
-        duration += 1
-        
-        if len(i_nodes) == 0:
-            print("TERMINATED: No more infectious nodes left to update")
-            break
-        
-        nodes_counter.loc[step] = [len(s_nodes),len(e_nodes),len(i_nodes), len(r_nodes), len(h_nodes), len(d_nodes)] 
+            # update i_days and e_days (1. initialize to zero the newly turned I nodes; 2. add one to previously exposed or infectious nodes)
+            old_I_nodes = list(set(i_nodes) - set(new_I_nodes))
+            g_temp = g_temp.withColumn("i_days", when(g_temp.id.isin(new_I_nodes), 1).otherwise(when(g_temp.id.isin(old_I_nodes), g_temp.i_days+1).otherwise(0)))
 
+            old_E_nodes = list(set(e_nodes) - set(new_E_nodes))
+            g_temp = g_temp.withColumn("e_days", when(g_temp.id.isin(new_E_nodes), 1).otherwise(when(g_temp.id.isin(old_E_nodes), g_temp.e_days+1).otherwise(0)))
+            
+            # finish updating the vertices --> let's update the graph!
+            g = GF.GraphFrame(g_temp, g.edges)
+
+            duration += 1
+            
+            if len(i_nodes) == 0:
+                print("TERMINATED: No more infectious nodes left to update")
+                break
+            
+            nodes_counter.loc[step] = [len(s_nodes),len(e_nodes),len(i_nodes), len(r_nodes), len(h_nodes), len(d_nodes)] 
+    
+    nodes_counter["duration"] = duration
     return nodes_counter, duration
 
 

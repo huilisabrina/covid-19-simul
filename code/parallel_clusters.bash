@@ -5,9 +5,7 @@
 # Wrapper script for Monte Carlo simulation with cluster parallelization
 
 # The following files must be in the same folder as this script:
-#   preprocess_network.py
-#   params_input.csv
-#   edge_list.csv
+#   combine_clusters.py
 #------------------------------------------------------------------------
 
 wd_dir="/home/ubuntu/CS205_FinalProject/testing"
@@ -30,7 +28,7 @@ for cluster in 1..8; do
             network_update_GF_monte_carlo.py \
             --v_input ${v_input_name} \
             --e_input ${e_input_name} \
-            --num_i_seeds 10 \
+            --num_i_seeds 100 \
             --num_time_steps 10 \
             --out "sim_n1000_cluster_${cluster_name}"
             
@@ -39,11 +37,11 @@ done
 # Combine results for full graph
 echo "Combining results across clusters"
 python combine_clusters.py \
-        --clusters "1,2,3" \
-        --input "sim_${sim_counter}_cluster" \
-        --out "sim_${sim_counter}_full"
+        --clusters "1,2,3,4,5,6,7,8" \
+        --input "sim_n1000_cluster" \
+        --out "sim_n1000_full"
 
-echo "Finish simulation: $sim_counter"
+echo "Finish simulation!"
 sleep 3
 
 #### ====================================
@@ -75,7 +73,7 @@ sleep 3
 #                 --p_hd ${params[5]} \
 #                 --t_latent ${params[6]} \
 #                 --t_infectious ${params[7]} \
-#                 --num_i_seeds ${params[8} \
+#                 --num_i_seeds ${params[8]} \
 #                 --num_time_steps ${params[11]} \
 #                 --out "sim_${sim_counter}_cluster_${cluster_name}"
                 

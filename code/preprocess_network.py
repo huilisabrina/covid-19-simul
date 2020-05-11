@@ -4,16 +4,15 @@
 # CS 205 Final Project
 # Preprocess the HIV dataset 
 # Prepare network input dataset (incorporate assumptions)
+
+# The following files must be in the same folder as this script:
+#   edge_list.csv
 #-------------------------------------------------------
 
 import random
 import numpy as np
 import pandas as pd
 import itertools as it
-
-# Load raw (cleaned) network data (edge_list.csv is the network_data.csv)
-network_data="edge_list.csv"
-df = pd.read_csv(network_data, sep=",", index_col=False)
 
 def gen_v_and_e(df):
 
@@ -46,8 +45,12 @@ def gen_v(df_e):
     return v_df
 
 #### =======================================
-####  BASIC PREP (USE DATASET AT FACE VALUE)
+####  PREPARE NETWORK DATASETS (ALL INPUTS)
 #### =======================================
+
+# Load raw (cleaned) network data (edge_list.csv is the network_data.csv)
+network_data="edge_list.csv"
+df = pd.read_csv(network_data, sep=",", index_col=False)
 
 # all clusters together (original)
 v_df, e_df = gen_v_and_e(df)

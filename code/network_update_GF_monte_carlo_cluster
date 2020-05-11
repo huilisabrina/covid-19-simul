@@ -363,8 +363,9 @@ def simulate(g,
             print("TERMINATED: No more infectious nodes left to update")
             break
         
-        nodes_counter.loc[step] = [len(s_nodes),len(e_nodes),len(i_nodes), len(r_nodes), len(h_nodes), len(d_nodes)] 
+        nodes_counter.loc[step] = [len(s_nodes),len(e_nodes),len(i_nodes), len(r_nodes), len(h_nodes), len(d_nodes)]
 
+    nodes_counter["duration"] = duration
     return nodes_counter, duration
 
 

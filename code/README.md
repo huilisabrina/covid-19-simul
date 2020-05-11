@@ -24,11 +24,11 @@
 
 * `network_update_GF_monte_carlo.py`:
 
-   A command line tool version of `network_updates_GF.py` that are callable from `bash`. Useful for Monte Carlo simulations. __All latest changes and functional improvements to network_update should be reflected in here.__ 
+   A command line tool version of `network_updates_GF.py` that are callable from `bash`. Useful for Monte Carlo simulations. By default uses two threads of local mode. To be called by all bash scripts.
 
 * `network_update_GF_monte_carlo_cluster.py`:
 
-   A dual version of `network_update_GF_monte_carlo.py` that is used on EMR cluster. To be called by `monte_carlo.bash` and `parallel_clusters.bash`. 
+   A dual version of `network_update_GF_monte_carlo.py` that is used on EMR cluster. To be called by `monte_carlo_sim.bash` and `parallel_clusters.bash`. 
 
 * `monte_carlo.bash`:
 
@@ -36,11 +36,17 @@
 
 * `parallel_clusters.bash`:
 
-   Master script for cluster parallelization. Calls network updates, then `combine_clusters.py` to consolidate the nodes coutner results.
+   Master script for cluster parallelization. Calls network updates functions, then `combine_clusters.py` to consolidate the cluster-specific results.
+
+* `diff_graphs.bash`:
+
+   Master script to test hypothesis: How does high/medium/low level of graph connectivity of the graph affect the epidemic outcomes?
    
 * `preprocess_network.py`:
 
-   Pre-process the network datasets and format it as inputs to the Monte Carlo algorithm. Split up the input datasets by clusters, for cluster parallelization. *This script can also be used to modify our network data (e.g. enlarge the network size, add edges, etc.) to test assumptions.*
+   Pre-process the network datasets and format it as inputs to the Monte Carlo algorithm. Split up the input datasets by clusters, for cluster-level parallelization. 
+
+   Generate network data with different degrees of connectivity, for assumptions tests.
 
 * `combine_clusters.py`:
    

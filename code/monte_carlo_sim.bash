@@ -1,9 +1,14 @@
 #!/bin/bash
 
-#-------------------------------------------------------
+#------------------------------------------------------------------------
 # CS 205 Final Project
-# Wrapper script for Monte Carlo simulation
-#-------------------------------------------------------
+# Wrapper script for Monte Carlo simulation with cluster parallelization
+
+# The following files must be in the same folder as this script:
+#   preprocess_network.py
+#   params_input.csv
+#   edge_list.csv
+#------------------------------------------------------------------------
 
 wd_dir="/home/ubuntu/CS205_FinalProject/testing"
 cd $wd_dir
@@ -11,19 +16,13 @@ cd $wd_dir
 # preprocess the HIV datasets
 python preprocess_network.py
 
-#### =================================
-####  SINGLE RUN TEST
-#### =================================
-# run simulation pipeline (default parameters)
-spark-submit --packages graphframes:graphframes:0.6.0-spark2.3-s_2.11 \
-            network_update_GF_monte_carlo.py \
-            --v_input "v_orig.txt" \
-            --e_input "e_orig.txt" \
-            --num_i_seeds 20 \
-            --num_s_seeds 50 \
-            --num_h_seeds 2 \
-            --num_time_steps 5 \
-            --out "sim_test"
+# suppress INFO messages displaying in Spark console:
+# spark-submit \
+# --packages graphframes:graphframes:0.6.0-spark2.3-s_2.11 \
+# --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:/home/ubuntu/spark-2.2.0-bin-hadoop2.7/conf/log4j.properties.template" \
+# --conf "spark.executor.extraJavaOptions=-Dlog4j.configuration=file:/home/ubuntu/spark-2.2.0-bin-hadoop2.7/conf/log4j.properties.template" \
+#  network_update_GF.py
+# ^ NO NEED IF WE DIRECTLY CHANGE THE LOG LEVEL OF SPARK CONTEXT
 
 #### =================================
 ####  MONTE CARLO SIMULATIONS
@@ -38,7 +37,8 @@ while IFS= read -r line;do
     params=($(printf "%s" "$line"|cut -d',' --output-delimiter=' ' -f1-))
     sim_counter = sim_counter + 1
     echo "Begin simulation: $sim_counter"
-    spark-submit --packages graphframes:graphframes:0.6.0-spark2.3-s_2.11 network_update_GF_monte_carlo.py \
+    spark-submit --packages graphframes:graphframes:0.6.0-spark2.3-s_2.11 \
+            network_update_GF_monte_carlo_cluster.py \
             --v_input "v_orig.txt" \
             --e_input "e_orig.txt" \
             --p_is ${params[0]} \

@@ -30,7 +30,7 @@
 
    A dual version of `network_update_GF_monte_carlo.py` that is used on EMR cluster. To be called by `monte_carlo_sim.bash` and `parallel_clusters.bash`. 
 
-* `monte_carlo.bash`:
+* `monte_carlo_sim.bash`:
 
    Master script that calls the network update functions, using an Excel file that specifies parameter values for each run. 
 

@@ -50,8 +50,6 @@ while IFS= read -r line;do
             --t_latent ${params[6]} \
             --t_infectious ${params[7]} \
             --num_i_seeds ${params[8} \
-            --num_s_seeds ${params[9]} \
-            --num_h_seeds ${params[10]} \
             --num_time_steps ${params[11]} \
             --out "sim_${sim_counter}"
     echo "Finish simulation: $sim_counter"

@@ -15,9 +15,6 @@ import itertools as it
 network_data="edge_list.csv"
 df = pd.read_csv(network_data, sep=",", index_col=False)
 
-# Randomly select 100 lines from the original dataset for testing
-# df = df.sample(n=100, random_state=1)
-
 def gen_v_and_e(df):
 
     # Construct the vertices table
@@ -56,6 +53,12 @@ def gen_v(df_e):
 v_df, e_df = gen_v_and_e(df)
 v_df.to_csv("v_orig.txt", sep='\t', index=False, na_rep="NA")
 e_df.to_csv("e_orig.txt", sep='\t', index=False, na_rep="NA")
+
+# use a random 1000 edges to work with
+df_n1000 = df.sample(n=1000, random_state=1)
+v_df, e_df = gen_v_and_e(df_n1000)
+v_df.to_csv("v_n1000.txt", sep='\t', index=False, na_rep="NA")
+e_df.to_csv("e_n1000.txt", sep='\t', index=False, na_rep="NA")
 
 # Split up data by study number, defined through "cluster" column
 for cluster in range(1,9):

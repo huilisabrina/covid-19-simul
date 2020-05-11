@@ -26,10 +26,22 @@
 
    A command line tool version of `network_updates_GF.py` that are callable from `bash`. Useful for Monte Carlo simulations. __All latest changes and functional improvements to network_update should be reflected in here.__ 
 
+* `network_update_GF_monte_carlo_cluster.py`:
+
+   A dual version of `network_update_GF_monte_carlo.py` that is used on EMR cluster. To be called by `monte_carlo.bash` and `parallel_clusters.bash`. 
+
 * `monte_carlo.bash`:
 
    Master script that calls the network update functions, using an Excel file that specifies parameter values for each run. 
+
+* `parallel_clusters.bash`:
+
+   Master script for cluster parallelization. Calls network updates, then `combine_clusters.py` to consolidate the nodes coutner results.
    
 * `preprocess_network.py`:
 
-   Pre-process the network datasets and format it as inputs to the Monte Carlo algorithm. *This script can also be used to modify our network data (e.g. enlarge the network size, add edges, etc.) to test assumptions.*
+   Pre-process the network datasets and format it as inputs to the Monte Carlo algorithm. Split up the input datasets by clusters, for cluster parallelization. *This script can also be used to modify our network data (e.g. enlarge the network size, add edges, etc.) to test assumptions.*
+
+* `combine_clusters.py`:
+   
+   Python script to combine the cluster-level outputs. To be called by `parallel_clusters.bash`.

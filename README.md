@@ -19,7 +19,7 @@ This is a two pronged-model, one for modelling subject-interaction in a communit
 
 2. SEIR model for epidemiological modelling of disease-spread: This is the epidemiological spreading process we overlaid onto our underlying population network. This is an extension of the standard SEIR (Susceptible - Exposed - Infected - Recovered) model which we augmented to include states for Death and Hospitalised. The model iterates through several time-steps (from time = 0 to time = model end). At each time step, individuals transition from one state to another based on some predetermined rules (shown as arrows in the picture below), and predetermined transition probabilities (indicated in the picture below). We calculated these transition probabilities based on literature reviews of the epidemiology of Covid-19 3. We keep track of individuals in each state at each time step. This allows us to calculate the size of the epidemic (in terms of cumulative number of people infected, hospitalized, deceased, etc), as well as the length (time from beginning of epidemic to time-step when there are no infected individuals left).
 
-[IMAGE SEIR]
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/SEIRmodel.png">
 
 ## Parallel Application and Programming Models
 
@@ -47,7 +47,7 @@ The next implementation of the code can be found in **network_update_GF.py**. Th
 ### Monte Carlo Implementation 
 The next implementation of the code can be found in **network_update_GF_monte_carlo.py**. This version has some dependencies on other files, as outlined in the diagram below.
 
-[IMAGE: MONTE CARLO WORKFLOW]
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/carlo_flow.png">
 
 The data input files necessary to run the code can be found in the "data" folder. **edge_list.csv** is the data provided from the HIV Transmission Network Metastudy Project, described earlier. It provides the social network used in the simulation, as a list of edges between nodes. The **params_input.csv** file provides parameters that will be selected during Monte Carlo simulations.
 
@@ -121,7 +121,7 @@ There are also a few other bash scripts in the code file, for specialized usage 
 
 To run with parallelized clusters, additions have to be made to the existing workflow, as shown below.
 
-[CLUSTER_WORKFLOW]
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/cluster_flow.png">
 
 The cluster-parallelized, final version of the main code is **network_update_GF_monte_carlo_cluster.py** . This file is just like **network_update_GF_monte_carlo_cluster.py**, except it has a different spark configuration. 
 
@@ -142,7 +142,7 @@ Performance can be evaluated through examining runtimes across different numbers
 
 The following plot provides a comparison of the runtimes obtained after increasing the number of cores (where each core is an m4.xlarge instance) and the number of threads per core. We see that having 5 cores seems to provide the most speed-up, for both the single-thread and double-thread scenarios. Focusing our attention on the single-thread runtimes, as the number of cores increases, the runtime steadily decreases up until 5 cores are used, but then increases dramatically once 6 cores are used. This is likely due to the substantial parallelization overheads required to use 6 cores. In contrast, the runtimes when two threads per core are used are generally shorter than the single-thread runtimes, but show very little improvement, if any, when the number of cores is increased. This is also likely due to the trade-off between parallelization overheads and parallelization speed-up, as more communication is required when multiple threads are used.
 
-<img src="https://github.com/huilisabrina/covid-19-simul/blob/master/figures/speed_up_cluster.png">
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/master/figures/speed_up_cluster.png" width=600>
 
 When comparing one thread per core to two threads per core, the highest speed-up can be seen when only two cores are used. In this case, speed-up is around 1.4. As the number of cores increases, the speed-up obtained by using multiple threads quickly decreases and in some circumstances disappears completely. When evaluating the effect of an increasing number of processors compared to a baseline of two processors, for one thread per processor, speed-up increases quickly up until 5 processors, then drops; for two threads per processor, no apparent speed-up trend can be observed. These results indicate that when a limited number cores are available, it is optimal to use a double-threaded approach; however, when there are 5 processors available, the single-threaded approach performs just as well, if not better, than the double-threaded approach. One thing to note here is the inherent stochasticity built into the graph updating step may lead to different runtimes depending on the run, so these results may differ slightly if we were to repeat the experiment.
 
@@ -164,7 +164,7 @@ Another challenge with using GraphFrames is the immutability of the data structu
 
 To simulate the effect of public health interventions, we ran our model using different characterizations of disease transmission and network structure. For example, in one Monte Carlo iteration (shown on the left, below), we increased the infectious and latent periods to simulate situations where testing might be delayed or lacking and found that a longer infectious period increased the number of total nodes that were infected, although a longer latent period (without infectivity) offset this increase. However, considering current evidence on COVID-19 suggests individuals can be infectious while latent, the result pertaining to longer latent periods is less directly applicable. We also varied the degree of connectivity of our graph (shown on the right, below) by increasing or decreasing the number of edges to examine the effect of social distancing, or lack thereof. Interestingly, we did not see much change, but the results of a different run could differ due to the inherent stochasticity in our model. 
 
-[END_PLOT]
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/finalfigs.png" width=600>
 
 One interesting aspect of our results is the epidemic dies out quickly and very few nodes are infected. After much debugging, we discovered the source of the issue to be our implementation of the SEIRHD model. This was another one of our main challenges. Given the lack of existing implementation of epidemic network models in GraphFrames, we had to produce both serial and parallel versions of this epidemic model. Our hope was to include parameters that best reflect current knowledge on COVID-19, such as the latent and infectious periods. We adapted our model by utilizing the vertex attribute functionality in GraphFrames to keep track of the state of the nodes as well as the time elapsed since exposure or infection. Unfortunately, this adaptation led to some issues with the flow of the state changes that we only discovered after using parallelization to scale up our simulations; however, future versions of our code could easily modify the graph updating functionality to produce more accurate epidemic estimates.
 

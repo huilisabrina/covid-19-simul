@@ -19,7 +19,7 @@ This is a two pronged-model, one for modelling subject-interaction in a communit
 
 2. SEIR model for epidemiological modelling of disease-spread: This is the epidemiological spreading process we overlaid onto our underlying population network. This is an extension of the standard SEIR (Susceptible - Exposed - Infected - Recovered) model which we augmented to include states for Death and Hospitalised. The model iterates through several time-steps (from time = 0 to time = model end). At each time step, individuals transition from one state to another based on some predetermined rules (shown as arrows in the picture below), and predetermined transition probabilities (indicated in the picture below). We calculated these transition probabilities based on literature reviews of the epidemiology of Covid-19 3. We keep track of individuals in each state at each time step. This allows us to calculate the size of the epidemic (in terms of cumulative number of people infected, hospitalized, deceased, etc), as well as the length (time from beginning of epidemic to time-step when there are no infected individuals left).
 
-<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/SEIRmodel.png">
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/SEIRmodel.png" width=600>
 
 ## Parallel Application and Programming Models
 
@@ -47,7 +47,7 @@ The next implementation of the code can be found in **network_update_GF.py**. Th
 ### Monte Carlo Implementation 
 The next implementation of the code can be found in **network_update_GF_monte_carlo.py**. This version has some dependencies on other files, as outlined in the diagram below.
 
-<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/carlo_flow.png">
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/carlo_flow.png" width=700>
 
 The data input files necessary to run the code can be found in the "data" folder. **edge_list.csv** is the data provided from the HIV Transmission Network Metastudy Project, described earlier. It provides the social network used in the simulation, as a list of edges between nodes. The **params_input.csv** file provides parameters that will be selected during Monte Carlo simulations.
 
@@ -121,7 +121,7 @@ There are also a few other bash scripts in the code file, for specialized usage 
 
 To run with parallelized clusters, additions have to be made to the existing workflow, as shown below.
 
-<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/cluster_flow.png">
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/cluster_flow.png" width=700>
 
 The cluster-parallelized, final version of the main code is **network_update_GF_monte_carlo_cluster.py** . This file is just like **network_update_GF_monte_carlo_cluster.py**, except it has a different spark configuration. 
 
@@ -164,7 +164,7 @@ Another challenge with using GraphFrames is the immutability of the data structu
 
 To simulate the effect of public health interventions, we ran our model using different characterizations of disease transmission and network structure. For example, in one Monte Carlo iteration (shown on the left, below), we increased the infectious and latent periods to simulate situations where testing might be delayed or lacking and found that a longer infectious period increased the number of total nodes that were infected, although a longer latent period (without infectivity) offset this increase. However, considering current evidence on COVID-19 suggests individuals can be infectious while latent, the result pertaining to longer latent periods is less directly applicable. We also varied the degree of connectivity of our graph (shown on the right, below) by increasing or decreasing the number of edges to examine the effect of social distancing, or lack thereof. Interestingly, we did not see much change, but the results of a different run could differ due to the inherent stochasticity in our model. 
 
-<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/finalfigs.png" width=600>
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/finalfigs.png" width=700>
 
 One interesting aspect of our results is the epidemic dies out quickly and very few nodes are infected. After much debugging, we discovered the source of the issue to be our implementation of the SEIRHD model. This was another one of our main challenges. Given the lack of existing implementation of epidemic network models in GraphFrames, we had to produce both serial and parallel versions of this epidemic model. Our hope was to include parameters that best reflect current knowledge on COVID-19, such as the latent and infectious periods. We adapted our model by utilizing the vertex attribute functionality in GraphFrames to keep track of the state of the nodes as well as the time elapsed since exposure or infection. Unfortunately, this adaptation led to some issues with the flow of the state changes that we only discovered after using parallelization to scale up our simulations; however, future versions of our code could easily modify the graph updating functionality to produce more accurate epidemic estimates.
 

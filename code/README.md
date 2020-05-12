@@ -30,6 +30,14 @@
 
    A dual version of `network_update_GF_monte_carlo.py` that is used on EMR cluster. To be called by `monte_carlo_sim.bash` and `parallel_clusters.bash`. 
 
+* `local_run.bash`:
+
+   Runs the Monte Carlo network updater for a single execution, using default values rather than reading them from params_input.csv It uses a single worker node. 
+
+* `cluster_run.bash`:
+
+   Same as local_run.bash, but it does use multiple worker nodes and threads.
+
 * `monte_carlo_sim.bash`:
 
    Master script that calls the network update functions, using an Excel file that specifies parameter values for each run. 

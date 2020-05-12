@@ -2,8 +2,7 @@
 
 #-------------------------------------------------------
 # CS 205 Final Project
-# Preprocess the HIV dataset 
-# Prepare network input dataset (incorporate assumptions)
+# Preprocess the HIV dataset for network updates
 
 # The following files must be in the same folder as this script:
 #   edge_list.csv
@@ -45,7 +44,7 @@ def gen_v(df_e):
     return v_df
 
 #### =======================================
-####  PREPARE NETWORK DATASETS (ALL INPUTS)
+####  PREPARE NETWORK DATASETS
 #### =======================================
 
 # Load raw (cleaned) network data (edge_list.csv is the network_data.csv)

@@ -19,7 +19,7 @@ This is a two pronged-model, one for modelling subject-interaction in a communit
 
 2. SEIR model for epidemiological modelling of disease-spread: This is the epidemiological spreading process we overlaid onto our underlying population network. This is an extension of the standard SEIR (Susceptible - Exposed - Infected - Recovered) model which we augmented to include states for Death and Hospitalised. The model iterates through several time-steps (from time = 0 to time = model end). At each time step, individuals transition from one state to another based on some predetermined rules (shown as arrows in the picture below), and predetermined transition probabilities (indicated in the picture below). We calculated these transition probabilities based on literature reviews of the epidemiology of Covid-19 3. We keep track of individuals in each state at each time step. This allows us to calculate the size of the epidemic (in terms of cumulative number of people infected, hospitalized, deceased, etc), as well as the length (time from beginning of epidemic to time-step when there are no infected individuals left).
 
-<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/SEIRmodel.png" width=600 align="middle">
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/SEIRmodel.png" width=600>
 
 ## Parallel Application and Programming Models
 
@@ -121,7 +121,7 @@ There are also a few other bash scripts in the code file, for specialized usage 
 
 To run with parallelized clusters, additions have to be made to the existing workflow, as shown below.
 
-<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/cluster_flow.png" width=700 align="middle">
+<img src="https://github.com/huilisabrina/covid-19-simul/blob/camille-dev/figures/Figs_ReadMe/cluster_flow.png" width=700>
 
 The cluster-parallelized, final version of the main code is **network_update_GF_monte_carlo_cluster.py** . This file is just like **network_update_GF_monte_carlo_cluster.py**, except it has a different spark configuration. 
 
